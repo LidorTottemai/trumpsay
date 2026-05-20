@@ -109,6 +109,15 @@ def send_prediction(pred: MarketPrediction) -> bool:
     }
     try:
         resp = requests.post(url, json=payload, timeout=15)
+        if resp.status_code == 401:
+            logger.critical("Telegram bot token is invalid — check TELEGRAM_BOT_TOKEN in .env")
+            return False
+        if resp.status_code == 403:
+            logger.critical("Telegram bot cannot send to chat — check TELEGRAM_CHAT_ID or add bot as channel admin")
+            return False
+        if resp.status_code == 429:
+            logger.warning("Telegram rate limit hit — message not sent")
+            return False
         resp.raise_for_status()
         logger.info("Telegram message sent successfully")
         return True
@@ -131,6 +140,12 @@ def send_error(message_he: str) -> None:
     }
     try:
         resp = requests.post(url, json=payload, timeout=15)
+        if resp.status_code == 401:
+            logger.critical("Telegram bot token is invalid — check TELEGRAM_BOT_TOKEN in .env")
+            return
+        if resp.status_code == 403:
+            logger.critical("Telegram bot cannot send to chat — check TELEGRAM_CHAT_ID or add bot as channel admin")
+            return
         resp.raise_for_status()
     except requests.RequestException as e:
         logger.error("Failed to send error message to Telegram: %s", e)

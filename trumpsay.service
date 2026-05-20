@@ -1,0 +1,18 @@
+[Unit]
+Description=Trump Market Predictor
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/trumpsay
+ExecStart=/home/pi/trumpsay/venv/bin/python main.py run
+Restart=always
+RestartSec=30
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=trumpsay
+
+[Install]
+WantedBy=multi-user.target
