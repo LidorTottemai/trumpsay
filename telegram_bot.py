@@ -126,6 +126,32 @@ def send_prediction(pred: MarketPrediction) -> bool:
         return False
 
 
+def send_no_market() -> None:
+    from pytz import timezone as tz
+    il_tz = tz("Asia/Jerusalem")
+    now_il = datetime.now(il_tz)
+    day_he = DAY_NAMES_HE[now_il.weekday()]
+    date_str = now_il.strftime("%d.%m.%Y")
+
+    text = f"📅 *אין מסחר היום* | יום {day_he}, {date_str}\n\n_הבורסה האמריקאית סגורה — לא תישלח תחזית._"
+
+    if settings.dry_run:
+        print(f"\n{text}\n")
+        return
+
+    url = TELEGRAM_API.format(token=settings.telegram_bot_token)
+    payload = {
+        "chat_id": settings.telegram_chat_id,
+        "text": text,
+        "parse_mode": "Markdown",
+    }
+    try:
+        resp = requests.post(url, json=payload, timeout=15)
+        resp.raise_for_status()
+    except requests.RequestException as e:
+        logger.error("Failed to send no-market message: %s", e)
+
+
 def send_error(message_he: str) -> None:
     if settings.dry_run:
         print(f"\n[ERROR] {message_he}\n")

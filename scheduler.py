@@ -86,7 +86,9 @@ def run_pipeline() -> None:
     from history import HistoryStore
 
     if not _is_market_day():
-        logger.info("Today is not an NYSE trading day — skipping pipeline")
+        logger.info("Today is not an NYSE trading day — sending notification")
+        from telegram_bot import send_no_market
+        send_no_market()
         return
 
     logger.info("Starting daily pipeline run")
