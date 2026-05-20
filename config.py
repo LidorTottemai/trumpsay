@@ -10,9 +10,9 @@ class Settings(BaseSettings):
     telegram_chat_id: str
 
     newsapi_key: str = ""
-    market_open_hour: int = 9
-    send_offset_minutes: int = 30
-    timezone: str = "America/New_York"
+    send_hour: int = 14
+    send_minute: int = 0
+    timezone: str = "Asia/Jerusalem"
     claude_model: str = "claude-opus-4-7"
     log_level: str = "INFO"
     dry_run: bool = False

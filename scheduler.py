@@ -47,26 +47,18 @@ def run_pipeline() -> None:
 
 def start_scheduler() -> None:
     tz = pytz.timezone(settings.timezone)
-    hour = settings.market_open_hour
-    offset = settings.send_offset_minutes
-
-    send_hour = hour
-    send_minute = -offset
-    if send_minute < 0:
-        send_hour -= 1
-        send_minute += 60
 
     logger.info(
         "Starting scheduler: will run daily at %02d:%02d %s",
-        send_hour, send_minute, settings.timezone,
+        settings.send_hour, settings.send_minute, settings.timezone,
     )
 
     scheduler = BlockingScheduler(timezone=tz)
     scheduler.add_job(
         run_pipeline,
         trigger=CronTrigger(
-            hour=send_hour,
-            minute=send_minute,
+            hour=settings.send_hour,
+            minute=settings.send_minute,
             timezone=tz,
         ),
         misfire_grace_time=300,
