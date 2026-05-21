@@ -39,7 +39,7 @@ def _confidence_bar(pct: int) -> str:
 def _format_message(pred: MarketPrediction) -> str:
     from pytz import timezone as tz
     from datetime import timezone as dt_tz, timedelta
-    il_tz = tz.timezone("Asia/Jerusalem")
+    il_tz = tz("Asia/Jerusalem")
     now_il = datetime.now(il_tz)
     day_he = DAY_NAMES_HE[now_il.weekday()]
     date_str = now_il.strftime("%d.%m.%Y")
@@ -50,7 +50,7 @@ def _format_message(pred: MarketPrediction) -> str:
     conf_bar = _confidence_bar(pred.confidence_pct)
 
     # Calculate minutes until NYSE open (9:30 AM ET) from now
-    et_tz = tz.timezone("America/New_York")
+    et_tz = tz("America/New_York")
     now_et = datetime.now(et_tz)
     market_open_et = now_et.replace(hour=9, minute=30, second=0, microsecond=0)
     minutes_until = int((market_open_et - now_et).total_seconds() / 60)
