@@ -83,7 +83,7 @@ def _build_user_prompt(items: list[TrumpItem], history: list[dict]) -> str:
     now = datetime.now(timezone.utc)
 
     from pytz import timezone as tz
-    est = tz.timezone("America/New_York")
+    est = tz("America/New_York")
     now_est = datetime.now(est)
 
     market_open_est = now_est.replace(hour=9, minute=30, second=0, microsecond=0)
