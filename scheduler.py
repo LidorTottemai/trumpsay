@@ -110,6 +110,8 @@ def run_pipeline() -> None:
             date=today,
             summary=prediction.key_driver,
             keywords=prediction.keywords,
+            predicted_direction=prediction.market_direction.value,
+            predicted_confidence=prediction.confidence_pct,
         )
 
         sent = send_prediction(prediction)
@@ -119,6 +121,42 @@ def run_pipeline() -> None:
     except Exception as e:
         logger.critical("Pipeline failed: %s", e, exc_info=True)
         send_error(f"שגיאה קריטית בצינור הנתונים: {str(e)[:200]}")
+
+
+def run_close_report() -> None:
+    if not _is_market_day():
+        return
+
+    from datetime import datetime, timezone
+    from history import HistoryStore
+    from telegram_bot import send_close_report, send_error
+
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    history_store = HistoryStore(settings.db_path)
+
+    try:
+        import yfinance as yf
+        ticker = yf.Ticker("^GSPC")
+        hist = ticker.history(period="2d")
+        if len(hist) < 2:
+            logger.warning("Could not fetch S&P 500 closing data")
+            return
+        prev_close = hist["Close"].iloc[-2]
+        today_close = hist["Close"].iloc[-1]
+        sp500_pct = (today_close - prev_close) / prev_close * 100
+    except Exception as e:
+        logger.error("Failed to fetch S&P 500 data: %s", e)
+        return
+
+    pred = history_store.get_today_prediction(today)
+    predicted_direction = pred["predicted_direction"] if pred else ""
+    predicted_confidence = pred["predicted_confidence"] if pred else 0
+
+    if pred:
+        history_store.record_outcome(pred["id"], sp500_pct)
+
+    send_close_report(sp500_pct, predicted_direction, predicted_confidence)
+    logger.info("Close report sent: S&P %.2f%%", sp500_pct)
 
 
 def start_scheduler() -> None:
@@ -140,6 +178,14 @@ def start_scheduler() -> None:
         misfire_grace_time=300,
         id="daily_prediction",
         name="Daily Trump Market Prediction",
+    )
+
+    scheduler.add_job(
+        run_close_report,
+        trigger=CronTrigger(hour=23, minute=30, timezone=tz),
+        misfire_grace_time=300,
+        id="close_report",
+        name="Daily Close Report",
     )
 
     try:

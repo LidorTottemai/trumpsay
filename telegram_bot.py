@@ -175,3 +175,56 @@ def send_error(message_he: str) -> None:
         resp.raise_for_status()
     except requests.RequestException as e:
         logger.error("Failed to send error message to Telegram: %s", e)
+
+
+def send_close_report(sp500_pct: float, predicted_direction: str, predicted_confidence: int) -> None:
+    from pytz import timezone as tz
+    il_tz = tz("Asia/Jerusalem")
+    now_il = datetime.now(il_tz)
+    day_he = DAY_NAMES_HE[now_il.weekday()]
+    date_str = now_il.strftime("%d.%m.%Y")
+
+    actual_direction = "UP" if sp500_pct > 0.3 else ("DOWN" if sp500_pct < -0.3 else "NEUTRAL")
+    actual_emoji = DIRECTION_EMOJI[Direction(actual_direction)]
+    actual_he = DIRECTION_HE[Direction(actual_direction)]
+
+    pred_emoji = DIRECTION_EMOJI[Direction(predicted_direction)] if predicted_direction else "❓"
+    pred_he = DIRECTION_HE[Direction(predicted_direction)] if predicted_direction else "לא ידוע"
+
+    correct = actual_direction == predicted_direction
+    result_line = "✅ *הבוט צדק!*" if correct else "❌ *הבוט טעה*"
+
+    sign = "+" if sp500_pct >= 0 else ""
+    sp500_str = f"{sign}{sp500_pct:.2f}%"
+
+    lines = [
+        f"📈 *דו\"ח סגירה* | יום {day_he}, {date_str}",
+        "━━━━━━━━━━━━━━━━━━━━━",
+        "",
+        f"{actual_emoji} *S&P 500 היום: {sp500_str}* — {actual_he}",
+        f"{pred_emoji} *התחזית הבוקר:* {pred_he} ({predicted_confidence}%)",
+        "",
+        result_line,
+        "",
+        "_נתון נשמר להיסטוריה לשיפור תחזיות עתידיות._",
+    ]
+    text = "\n".join(lines)
+
+    if settings.dry_run:
+        print("\n" + "=" * 60)
+        print(text)
+        print("=" * 60 + "\n")
+        return
+
+    url = TELEGRAM_API.format(token=settings.telegram_bot_token)
+    payload = {
+        "chat_id": settings.telegram_chat_id,
+        "text": text,
+        "parse_mode": "Markdown",
+    }
+    try:
+        resp = requests.post(url, json=payload, timeout=15)
+        resp.raise_for_status()
+        logger.info("Close report sent successfully")
+    except requests.RequestException as e:
+        logger.error("Failed to send close report: %s", e)

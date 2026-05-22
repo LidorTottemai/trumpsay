@@ -100,14 +100,16 @@ SEED_EVENTS = [
 
 CREATE_TABLE = """
 CREATE TABLE IF NOT EXISTS events (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    date        TEXT NOT NULL,
-    summary     TEXT NOT NULL,
-    keywords    TEXT NOT NULL,
-    source      TEXT NOT NULL,
-    sp500_pct   REAL,
-    direction   TEXT,
-    notes       TEXT
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    date                TEXT NOT NULL,
+    summary             TEXT NOT NULL,
+    keywords            TEXT NOT NULL,
+    source              TEXT NOT NULL,
+    sp500_pct           REAL,
+    direction           TEXT,
+    notes               TEXT,
+    predicted_direction TEXT,
+    predicted_confidence INTEGER
 );
 """
 
@@ -126,6 +128,11 @@ class HistoryStore:
     def _init_db(self) -> None:
         with self._connect() as conn:
             conn.execute(CREATE_TABLE)
+            for col, col_type in [("predicted_direction", "TEXT"), ("predicted_confidence", "INTEGER")]:
+                try:
+                    conn.execute(f"ALTER TABLE events ADD COLUMN {col} {col_type}")
+                except Exception:
+                    pass
             count = conn.execute("SELECT COUNT(*) FROM events WHERE sp500_pct IS NOT NULL").fetchone()[0]
             if count == 0:
                 self._seed(conn)
@@ -155,14 +162,24 @@ class HistoryStore:
         scored.sort(key=lambda x: x[0], reverse=True)
         return [item for _, item in scored[:limit]]
 
-    def record_prediction(self, date: str, summary: str, keywords: list[str]) -> int:
+    def record_prediction(self, date: str, summary: str, keywords: list[str],
+                          predicted_direction: str = "", predicted_confidence: int = 0) -> int:
         kw_str = ",".join(keywords)
         with self._connect() as conn:
             cursor = conn.execute(
-                "INSERT INTO events (date, summary, keywords, source) VALUES (?, ?, ?, 'prediction')",
-                (date, summary, kw_str),
+                "INSERT INTO events (date, summary, keywords, source, predicted_direction, predicted_confidence) "
+                "VALUES (?, ?, ?, 'prediction', ?, ?)",
+                (date, summary, kw_str, predicted_direction, predicted_confidence),
             )
             return cursor.lastrowid
+
+    def get_today_prediction(self, date: str) -> dict | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT * FROM events WHERE date = ? AND source = 'prediction' ORDER BY id DESC LIMIT 1",
+                (date,),
+            ).fetchone()
+        return dict(row) if row else None
 
     def record_outcome(self, event_id: int, sp500_pct: float) -> None:
         direction = "UP" if sp500_pct > 0.3 else ("DOWN" if sp500_pct < -0.3 else "NEUTRAL")
